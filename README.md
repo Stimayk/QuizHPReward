@@ -16,5 +16,5 @@ Requires [Quiz](https://github.com/Stimayk/Quiz)
 
 Where
 
-+ WinMin - the minimum number of health to win
-+ WinMax - maximum number of health to win
++ WinMin - the minimum amount of health to win
++ WinMax - maximum amount of health to be given out when winning
