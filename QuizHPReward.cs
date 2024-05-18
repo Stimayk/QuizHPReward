@@ -1,5 +1,6 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using QuizApi;
 
@@ -9,12 +10,13 @@ namespace QuizHPReward
     {
         public override string ModuleName => "QuizHPReward";
         public override string ModuleAuthor => "E!N";
-        public override string ModuleVersion => "v1.0";
+        public override string ModuleVersion => "v1.1";
 
         private IQuizApi? QUIZ_API;
         private QuizHPRewardConfig? _config;
         private int _Min;
         private int _Max;
+        private int _Winning;
 
         public override void OnAllPluginsLoaded(bool hotReload)
         {
@@ -33,6 +35,8 @@ namespace QuizHPReward
 
             InitializeQuizShopReward();
 
+            QUIZ_API.OnQuizStart += HandleQuizStart;
+            QUIZ_API.OnQuizEnd += HandleQuizEnd;
             QUIZ_API.OnPlayerWin += HandlePlayerWin;
         }
 
@@ -46,7 +50,7 @@ namespace QuizHPReward
             if (!Directory.Exists(directoryPath))
             {
                 Directory.CreateDirectory(directoryPath);
-                Console.WriteLine($"{ModuleName} | Created configuration directory at: {directoryPath}");
+                Logger.LogInformation($"Created configuration directory at: {directoryPath}");
             }
         }
 
@@ -54,13 +58,23 @@ namespace QuizHPReward
         {
             if (_config == null)
             {
-                Console.WriteLine($"{ModuleName} | Error: Configuration is not loaded.");
+                Logger.LogError($"Configuration is not loaded.");
                 return;
             }
 
             _Min = _config.WinMin;
             _Max = _config.WinMax;
-            Console.WriteLine($"{ModuleName} | Initialized: Min = {_Min}, Max = {_Max}");
+            Logger.LogInformation($"Initialized: Min = {_Min}, Max = {_Max}");
+        }
+
+        private void HandleQuizStart()
+        {
+            if (QUIZ_API != null)
+            {
+                int reward = new Random().Next(_Min, _Max);
+                _Winning = reward;
+                Server.PrintToChatAll($"{Localizer["Reward", QUIZ_API.GetTranslatedText("Prefix"), reward]}");
+            }
         }
 
         private void HandlePlayerWin(CCSPlayerController player)
@@ -71,12 +85,19 @@ namespace QuizHPReward
                 {
                     if (player.PlayerPawn.Value != null)
                     {
-                        int reward = new Random().Next(_Min, _Max);
-                        player.PlayerPawn.Value.Health += reward;
+                        player.PlayerPawn.Value.Health += _Winning;
+                        player.PrintToChat($"{Localizer["RewardWin", QUIZ_API.GetTranslatedText("Prefix"), _Winning]}");
                         Utilities.SetStateChanged(player, "CBaseEntity", "m_iHealth");
-                        player.PrintToChat($"{Localizer["RewardWin", QUIZ_API.GetTranslatedText("Prefix"), reward]}");
                     }
                 });
+            }
+        }
+
+        private void HandleQuizEnd()
+        {
+            if (QUIZ_API != null)
+            {
+                Server.PrintToChatAll($"{Localizer["RewardLose", QUIZ_API.GetTranslatedText("Prefix"), _Winning]}");
             }
         }
     }
